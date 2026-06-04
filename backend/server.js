@@ -3,7 +3,7 @@ const mysql = require('mysql2');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
-const path = require('path'); // ⭐ ADDED: Node utility to manage folder directories
+const path = require('path'); // Node utility to manage folder directories
 require('dotenv').config();
 
 const app = express();
@@ -131,14 +131,14 @@ app.post('/api/cart/add', authenticateToken, (req, res) => {
     );
 });
 
-// --- ⭐ FRONTEND STATIC RENDER ROUTING BLOCK ⭐ ---
+// --- 🛠️ UPDATED: FRONTEND STATIC RENDER ROUTING BLOCK (VITE ALIGNED) 🛠️ ---
 
-// 1. Tell Express to serve compiled asset files (CSS, JS, Images) from your build folder
-app.use(express.static(path.join(__dirname, '../frontend/build')));
+// 1. Tell Express to serve compiled asset files (CSS, JS, Images) from your Vite 'dist' folder
+app.use(express.static(path.join(__dirname, '../frontend/dist')));
 
-// 2. Fallback router: Send index.html to your browser for any traffic that isn't an /api route
+// 2. Fallback router: Send index.html inside the 'dist' folder to the browser for non-API navigation
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../frontend/build', 'index.html'));
+  res.sendFile(path.join(__dirname, '../frontend/dist', 'index.html'));
 });
 
 // --- ENGINE RUNTIME BINDING ---
