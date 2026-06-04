@@ -59,7 +59,6 @@ app.post('/api/auth/login', (req, res) => {
     const { email, password } = req.body;
     
     pool.query('SELECT * FROM users WHERE email = ?', [email], async (err, results) => {
-        // Look here: If the database engine drops the query, we log it directly to PowerShell!
         if (err) {
             console.error("❌ CRITICAL LOGIN DATABASE ERROR:", err);
             return res.status(500).json({ error: "Internal Database Connection Error", details: err.message });
@@ -131,4 +130,9 @@ app.post('/api/cart/add', authenticateToken, (req, res) => {
     );
 });
 
-app.listen(5000, () => console.log('Enterprise API Routing operational on engine port 5000'));
+// --- ENGINE RUNTIME BINDING ---
+// Dynamic environment porting fallback configuration optimized for AWS ALB systems
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Enterprise API Routing operational on engine network port ${PORT}`);
+});
