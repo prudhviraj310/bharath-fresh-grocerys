@@ -3,6 +3,7 @@ const mysql = require('mysql2');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
+const path = require('path'); // ⭐ ADDED: Node utility to manage folder directories
 require('dotenv').config();
 
 const app = express();
@@ -130,8 +131,17 @@ app.post('/api/cart/add', authenticateToken, (req, res) => {
     );
 });
 
+// --- ⭐ FRONTEND STATIC RENDER ROUTING BLOCK ⭐ ---
+
+// 1. Tell Express to serve compiled asset files (CSS, JS, Images) from your build folder
+app.use(express.static(path.join(__dirname, '../frontend/build')));
+
+// 2. Fallback router: Send index.html to your browser for any traffic that isn't an /api route
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../frontend/build', 'index.html'));
+});
+
 // --- ENGINE RUNTIME BINDING ---
-// Dynamic environment porting fallback configuration optimized for AWS ALB systems
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`Enterprise API Routing operational on engine network port ${PORT}`);
