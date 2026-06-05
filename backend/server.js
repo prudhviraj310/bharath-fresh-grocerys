@@ -131,14 +131,22 @@ app.post('/api/cart/add', authenticateToken, (req, res) => {
     );
 });
 
-// --- 🛠️ UPDATED: FRONTEND STATIC RENDER ROUTING BLOCK (VITE ALIGNED) 🛠️ ---
+// --- 🛠️ FIXED: PRODUCTION FRONTEND STATIC RENDER ROUTING ---
 
-// 1. Tell Express to serve compiled asset files (CSS, JS, Images) from your Vite 'dist' folder
-app.use(express.static(path.join(__dirname, '../frontend/dist')));
+// Point to the local 'dist' folder copied inside the backend workspace directory
+const frontendPath = path.join(__dirname, 'dist');
 
-// 2. Fallback router: Send index.html inside the 'dist' folder to the browser for non-API navigation
+// 1. Tell Express to serve compiled static bundle assets (CSS, JS, Images)
+app.use(express.static(frontendPath));
+
+// 2. Fallback router: Send index.html back for Single Page Application client-side route tracking
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../frontend/dist', 'index.html'));
+  // Edge protection filter: If the path looks like an API call, don't return index.html
+  if (!req.url.startsWith('/api')) {
+    res.sendFile(path.join(frontendPath, 'index.html'));
+  } else {
+    res.status(404).json({ error: "API Endpoint Not Found" });
+  }
 });
 
 // --- ENGINE RUNTIME BINDING ---
