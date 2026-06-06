@@ -19,7 +19,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1  # 👈 Note: Change this if your infrastructure is outside us-east-1
+          aws-region: us-east-1
 
       - name: Execute Dynamic Deployment via SSM
         run: |
@@ -48,15 +48,24 @@ jobs:
           COMMAND_ID=$(aws ssm send-command \
             --instance-ids $INSTANCE_IDS \
             --document-name "AWS-RunShellScript" \
-            --comment "Automated frontend deployment from GitHub Actions" \
+            --comment "Automated frontend & backend deployment from GitHub Actions" \
             --parameters 'commands=[
-              "echo \"Connected natively inside EC2. Accessing frontend repository...\"",
-              "cd /home/ubuntu/bharath-fresh-grocerys/frontend",
+              "echo \"Connected natively inside EC2. Accessing core repository...\"",
+              "cd /home/ubuntu/app",
               "git fetch origin main",
               "git reset --hard origin/main",
+              "echo \"Compiling Frontend Assets...\"",
+              "cd frontend",
               "npm install",
-              "npm run build",
-              "echo \"Frontend compilation successfully completed!\""
+              "CI=false npm run build",
+              "echo \"Copying static distribution assets to backend engine...\"",
+              "mkdir -p ../backend/dist",
+              "cp -r dist/* ../backend/dist/",
+              "echo \"Restarting Backend Production Services...\"",
+              "cd ../backend",
+              "npm install",
+              "pm2 restart grocery-backend || pm2 start server.js --name \"grocery-backend\"",
+              "echo \"Deployment script successfully completed!\""
             ]' \
             --query "Command.CommandId" \
             --output text)
