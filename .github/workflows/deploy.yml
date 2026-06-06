@@ -1,0 +1,72 @@
+name: Production Automated Deployment
+
+on:
+  push:
+    branches:
+      - main  # Automatically fires whenever you push code changes to your main branch
+
+jobs:
+  deploy:
+    name: Locate Dynamic Instances and Deploy Code
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Authenticate with AWS Cloud
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1  # 👈 Note: Change this if your infrastructure is outside us-east-1
+
+      - name: Execute Dynamic Deployment via SSM
+        run: |
+          echo "Querying Auto Scaling Group for live instances..."
+          
+          # Your exact AWS Auto Scaling Group Name configured automatically
+          ASG_NAME="terraform-20260606025652085000000005"
+          
+          # Automatically tracks down the unique IDs of servers that are active right now
+          INSTANCE_IDS=$(aws autoscaling describe-auto-scaling-groups \
+            --auto-scaling-group-names "$ASG_NAME" \
+            --query "AutoScalingGroups[0].Instances[?LifecycleState=='InService'].InstanceId" \
+            --output text)
+          
+          if [ -z "$INSTANCE_IDS" ] || [ "$INSTANCE_IDS" = "None" ]; then
+            echo "❌ Error: No running instances found in '$ASG_NAME'."
+            echo "👉 Did you remember to scale your ASG capacity back up to 1 or 2 in AWS?"
+            exit 1
+          fi
+          
+          echo "Found active target instances: $INSTANCE_IDS"
+          
+          echo "Sending internal shell commands via AWS Systems Manager..."
+          
+          # Tells AWS to internally pass these commands to the live instances simultaneously
+          COMMAND_ID=$(aws ssm send-command \
+            --instance-ids $INSTANCE_IDS \
+            --document-name "AWS-RunShellScript" \
+            --comment "Automated frontend deployment from GitHub Actions" \
+            --parameters 'commands=[
+              "echo \"Connected natively inside EC2. Accessing frontend repository...\"",
+              "cd /home/ubuntu/bharath-fresh-grocerys/frontend",
+              "git fetch origin main",
+              "git reset --hard origin/main",
+              "npm install",
+              "npm run build",
+              "echo \"Frontend compilation successfully completed!\""
+            ]' \
+            --query "Command.CommandId" \
+            --output text)
+          
+          echo "✅ AWS SSM Command accepted! Command ID: $COMMAND_ID"
+          echo "Waiting for the deployment script to finish execution across your targets..."
+          
+          # Keeps the GitHub terminal open until the installation finishes running on your EC2 instances
+          aws ssm wait command-executed \
+            --command-id "$COMMAND_ID" \
+            --instance-id "${INSTANCE_IDS%% *}"
+          
+          echo "🚀 Success! Your live website has been updated automatically."
