@@ -48,7 +48,7 @@ jobs:
           COMMAND_ID=$(aws ssm send-command \
             --instance-ids $INSTANCE_IDS \
             --document-name "AWS-RunShellScript" \
-            --comment "Automated frontend & backend deployment from GitHub Actions" \
+            --comment "Automated frontend & backend deployment with cache clearing" \
             --parameters 'commands=[
               "echo \"Connected natively inside EC2. Accessing core repository...\"",
               "cd /home/ubuntu/app",
@@ -58,24 +58,16 @@ jobs:
               "cd frontend",
               "npm install",
               "CI=false npm run build",
-              "echo \"Copying static distribution assets to backend engine...\"",
+              "echo \"Wiping old production distribution folder to prevent caching...\"",
+              "rm -rf ../backend/dist",
               "mkdir -p ../backend/dist",
+              "echo \"Copying fresh distribution assets...\"",
               "cp -r dist/* ../backend/dist/",
-              "echo \"Restarting Backend Production Services...\"",
+              "echo \"Hard restarting backend process workers...\"",
               "cd ../backend",
               "npm install",
-              "pm2 restart grocery-backend || pm2 start server.js --name \"grocery-backend\"",
+              "pm2 restart grocery-backend --update-env || pm2 start server.js --name \"grocery-backend\"",
               "echo \"Deployment script successfully completed!\""
             ]' \
             --query "Command.CommandId" \
             --output text)
-          
-          echo "✅ AWS SSM Command accepted! Command ID: $COMMAND_ID"
-          echo "Waiting for the deployment script to finish execution across your targets..."
-          
-          # Keeps the GitHub terminal open until the installation finishes running on your EC2 instances
-          aws ssm wait command-executed \
-            --command-id "$COMMAND_ID" \
-            --instance-id "${INSTANCE_IDS%% *}"
-          
-          echo "🚀 Success! Your live website has been updated automatically."
